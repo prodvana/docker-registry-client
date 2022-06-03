@@ -70,6 +70,28 @@ func (registry *Registry) ManifestV2(repository, reference string) (*schema2.Des
 	return deserialized, nil
 }
 
+func (registry *Registry) ManifestV2Digest(repository, reference string) (digest.Digest, error) {
+	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+	registry.Logf("registry.manifest.head url=%s repository=%s reference=%s", url, repository, reference)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Accept", schema2.MediaTypeManifest)
+	resp, err := registry.Client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		return "", err
+	}
+	return digest.Parse(resp.Header.Get("Docker-Content-Digest"))
+}
+
 func (registry *Registry) ManifestDigest(repository, reference string) (digest.Digest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.head url=%s repository=%s reference=%s", url, repository, reference)
