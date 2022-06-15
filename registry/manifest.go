@@ -73,7 +73,7 @@ func (registry *Registry) ManifestV2(repository, reference string) (*schema2.Des
 func (registry *Registry) ManifestV2Digest(repository, reference string) (digest.Digest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.head url=%s repository=%s reference=%s", url, repository, reference)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("HEAD", url, nil)
 	if err != nil {
 		return "", err
 	}
