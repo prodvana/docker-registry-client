@@ -41,33 +41,37 @@ func (registry *Registry) Manifest(repository, reference string) (*schema1.Signe
 	return signedManifest, nil
 }
 
-func (registry *Registry) ManifestV2(repository, reference string) (*schema2.DeserializedManifest, error) {
+func (registry *Registry) ManifestV2WithDigest(repository, reference string) (*schema2.DeserializedManifest, *digest.Digest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	req.Header.Set("Accept", schema2.MediaTypeManifest)
 	resp, err := registry.Client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	d, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
+	if err != nil {
+		return nil, nil, err
+	}
 	deserialized := &schema2.DeserializedManifest{}
 	err = deserialized.UnmarshalJSON(body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return deserialized, nil
+	return deserialized, &d, nil
 }
 
 func (registry *Registry) ManifestV2Digest(repository, reference string) (digest.Digest, error) {
