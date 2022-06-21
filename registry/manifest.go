@@ -41,37 +41,71 @@ func (registry *Registry) Manifest(repository, reference string) (*schema1.Signe
 	return signedManifest, nil
 }
 
-func (registry *Registry) ManifestV2WithDigest(repository, reference string) (*schema2.DeserializedManifest, *digest.Digest, error) {
+func (registry *Registry) ManifestWithDigest(repository, reference string) (*schema1.SignedManifest, digest.Digest, error) {
 	url := registry.url("/v2/%s/manifests/%s", repository, reference)
 	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 
-	req.Header.Set("Accept", schema2.MediaTypeManifest)
+	req.Header.Set("Accept", schema1.MediaTypeManifest)
 	resp, err := registry.Client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
+	}
+	d, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
+	if err != nil {
+		return nil, "", err
+	}
+
+	signedManifest := &schema1.SignedManifest{}
+	err = signedManifest.UnmarshalJSON(body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return signedManifest, d, nil
+}
+
+func (registry *Registry) ManifestV2WithDigest(repository, reference string) (*schema2.DeserializedManifest, digest.Digest, error) {
+	url := registry.url("/v2/%s/manifests/%s", repository, reference)
+	registry.Logf("registry.manifest.get url=%s repository=%s reference=%s", url, repository, reference)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, "", err
+	}
+
+	req.Header.Set("Accept", schema2.MediaTypeManifest)
+	resp, err := registry.Client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
 	}
 
 	d, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	deserialized := &schema2.DeserializedManifest{}
 	err = deserialized.UnmarshalJSON(body)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
-	return deserialized, &d, nil
+	return deserialized, d, nil
 }
 
 func (registry *Registry) ManifestV2Digest(repository, reference string) (digest.Digest, error) {
