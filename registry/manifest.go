@@ -96,9 +96,18 @@ func (registry *Registry) ManifestV2WithDigest(repository, reference string) (*s
 		return nil, "", err
 	}
 
-	d, err := digest.Parse(resp.Header.Get("Docker-Content-Digest"))
-	if err != nil {
-		return nil, "", err
+	var d digest.Digest
+	maybeDigest := resp.Header.Get("Docker-Content-Digest") // ECR does not send this header in response for GET request, but does for HEAD request
+	if len(maybeDigest) != 0 {
+		d, err = digest.Parse(maybeDigest)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		d, err = registry.ManifestV2Digest(repository, reference)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	deserialized := &schema2.DeserializedManifest{}
 	err = deserialized.UnmarshalJSON(body)
